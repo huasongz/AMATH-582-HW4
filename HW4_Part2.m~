@@ -1,0 +1,339 @@
+clear all;clc;
+
+mainFolder1 = dir('Test 1');
+mainFolder1 = mainFolder1(4:end);
+mainFolder2 = dir('Test 2');
+mainFolder2 = mainFolder2(4:end);
+mainFolder3 = dir('Test 3');
+mainFolder3 = mainFolder3(4:end);
+
+y = ones(1,30);
+Y = [y 2*y 3*y]; 
+y1 = Y; y2 = Y; y3 = Y;
+
+% Test 1
+y_1 = zeros(240000,1);
+Fs_1 = [];
+n = 240000;
+for i=1:length(mainFolder1)
+    name = mainFolder1(i).name;
+    a = ['Test 1','/',name];
+    subfolder=dir(a);
+    subfolder = subfolder(3:end);
+    for j = 1:length(subfolder)
+        [y,Fs] = audioread(subfolder(j).name);
+        if length(y(:,1))>n
+            y = y(1:n,:);
+            %Fs = Fs(1:n,:);
+        else
+            n = length(y(:,1));
+            y_1 = y_1(1:n,:);
+            %Fs_1 = Fs_1(1:n,:);
+        end
+        y_1 = [y_1 y];
+        Fs_1 = [Fs_1 Fs];
+    end
+end
+y_1 = y_1(:,2:end);
+test1 = [];
+for j = 1:2:length(y_1(1,:))-1
+    b = reshape(y_1(:,j:j+1),length(y_1(:,1))*2,1);
+    test1 = [test1 b];
+end
+
+% Load Test 2 data
+y_2 = zeros(240000,1);
+Fs_2 = [];
+n = 240000;
+for i=1:length(mainFolder2)
+    name = mainFolder2(i).name;
+    a = ['Test 2','/',name];
+    subfolder=dir(a);
+    subfolder = subfolder(3:end);
+    for j = 1:length(subfolder)
+        [y,Fs] = audioread(subfolder(j).name);
+        if length(y(:,1))>n
+            y = y(1:n,:);
+        else
+            n = length(y(:,1));
+            y_2 = y_2(1:n,:);
+        end
+        y_2 = [y_2 y];
+        Fs_2 = [Fs_2 Fs];
+    end
+end
+y_2 = y_2(:,2:end);
+test2 = [];
+for j = 1:2:length(y_2(1,:))-1
+    b = reshape(y_2(:,j:j+1),length(y_2(:,1))*2,1);
+    test2 = [test2 b];
+end
+
+% Load Test 3 data
+y_3 = zeros(240000,1);
+Fs_3 = [];
+n = 240000;
+for i=1:length(mainFolder3)
+    name = mainFolder3(i).name;
+    a = ['Test 3','/',name];
+    subfolder=dir(a);
+    subfolder = subfolder(3:end);
+    for j = 1:length(subfolder)
+        [y,Fs] = audioread(subfolder(j).name);
+        if length(y(:,1))>n
+            y = y(1:n,:);
+            %Fs = Fs(1:n,:);
+        else
+            n = length(y(:,1));
+            y_3 = y_3(1:n,:);
+            %Fs_1 = Fs_1(1:n,:);
+        end
+        y_3 = [y_3 y];
+        Fs_3 = [Fs_3 Fs];
+    end
+end
+y_3 = y_3(:,2:end);
+test3 = [];
+for j = 1:2:length(y_3(1,:))-1
+    b = reshape(y_3(:,j:j+1),length(y_3(:,1))*2,1);
+    test3 = [test3 b];
+end
+
+%% Test 1
+ind = randi([1 90],1,10);
+test1_test = test1(:,ind);
+y1_test = y1(:,ind);
+test1(:,ind) = [];
+y1(:,ind) = [];
+test1_train = test1;
+y1_train = y1;
+
+%%
+artist1 = [];
+artist2 = [];
+artist3 = [];
+for i = 1:length(y1_train)
+    if y1(i) == 1
+        artist1 = [artist1 test1_train(:,i)];
+    elseif y1(i) == 2
+        artist2 = [artist2 test1_train(:,i)];
+    elseif y1(i) == 3
+        artist3 = [artist3 test1_train(:,i)];
+    end
+end
+test1_ave1 = sum(artist1,2)/length(artist1(1,:)); % average music for each artist
+test1_ave2 = sum(artist2,2)/length(artist2(1,:));
+test1_ave3 = sum(artist3,2)/length(artist3(1,:));
+
+[U1,S1,V1] = svd(test1_train','econ');
+figure(1)
+plot(diag(S1)/sum(diag(S1)),'ro','LineWidth',[2])
+xlabel('Song clips')
+ylabel('Singular values')
+title('Singular value spectrum for Test 1')
+print(gcf,'-dpng','test1_singular_value_spectrum.png');
+% rank = 10
+test1_proj1 = V1'*test1_ave1; % how average music of genere 1 is projected
+% onto principle space
+test1_proj2 = V1'*test1_ave2;
+test1_proj3 = V1'*test1_ave3;
+
+% test
+proj = V1'*test1_test;
+accurate = 0;
+R = [];
+for i = 1:length(proj(1,:))
+    MSE = [mean((proj(:,i)-test1_proj1).^2)
+        mean((proj(:,i)-test1_proj2).^2)
+        mean((proj(:,i)-test1_proj3).^2)];
+    [M,I] = min(MSE);
+    
+    if I == 1
+        r = 1;
+    elseif I == 2
+        r = 2;
+    else
+        r = 3;
+    end
+    R = [R r];
+    
+    if y1_test(i) == r
+        accurate = accurate + 1;
+    end
+end
+accuracy = sum(accurate)/10;
+A = ['Accuracy for test 1 is ', num2str(accuracy)];
+disp(A)
+
+%% test 1
+% SVD
+test1_1 = test1(:,1:30);
+test1_2 = test1(:,31:60);
+test1_3 = test1(:,61:90);
+test1_ave1 = sum(test1_1,2)/30; % average music for each artist
+test1_ave2 = sum(test1_2,2)/30;
+test1_ave3 = sum(test1_3,2)/30;
+
+[U1,S1,V1] = svd(test1','econ');
+figure(1)
+plot(diag(S1)/sum(diag(S1)),'ro','LineWidth',[2])
+xlabel('Song clips')
+ylabel('Singular values')
+title('Singular value spectrum for Test 1')
+print(gcf,'-dpng','test1_singular_value_spectrum.png');
+% rank = 10
+test1_proj1 = V1'*test1_ave1; % how average music of genere 1 is projected
+% onto principle space
+test1_proj2 = V1'*test1_ave2;
+test1_proj3 = V1'*test1_ave3;
+
+% test
+ind = randi([1 90],1,10);
+test = test1(:,ind);
+proj = V1'*test;
+accurate = 0;
+R = [];
+CLASS = [];
+for i = 1:length(proj(1,:))
+    MSE = [mean((proj(:,i)-test1_proj1).^2)
+        mean((proj(:,i)-test1_proj2).^2)
+        mean((proj(:,i)-test1_proj3).^2)];
+    [M,I] = min(MSE);
+    if (0<ind(i)) && (ind(i)<31)
+        class = 1;
+    elseif (30<ind(i)) && (ind(i)<61)
+        class = 2;
+    elseif (61<ind(i)) && (ind(i)<91)
+        class = 3;
+    end
+    CLASS = [CLASS class];
+    
+    if I == 1
+        r = 1;
+    elseif I == 2
+        r = 2;
+    else
+        r = 3;
+    end
+    R = [R r];
+    
+    if class == r
+        accurate = accurate + 1;
+    end
+end
+accuracy = sum(accurate)/10;
+A = ['Accuracy for test 1 is ', num2str(accuracy)];
+disp(A)
+
+%% Test 2
+% SVD
+test2_1 = test2(:,1:30);
+test2_2 = test2(:,31:60);
+test2_3 = test2(:,61:90);
+test2_ave1 = sum(test2_1,2)/30; % average music for each band
+test2_ave2 = sum(test2_2,2)/30;
+test2_ave3 = sum(test2_3,2)/30;
+
+[U2,S2,V2] = svd(test2','econ');
+figure(2)
+plot(diag(S2)/sum(diag(S2)),'ro','LineWidth',[2])
+xlabel('Song clips')
+ylabel('Singular values')
+title('Singular value spectrum for Test 2')
+print(gcf,'-dpng','test2_singular_value_spectrum.png');
+% rank = 10
+test2_proj1 = V2'*test2_ave1; % how average music of genere 1 is projected
+% onto principle space
+test2_proj2 = V2'*test2_ave2;
+test2_proj3 = V2'*test2_ave3;
+
+% test
+ind = randi([1 90],1,10);
+test = test2(:,ind);
+proj = V2'*test;
+accurate = 0;
+for i = 1:length(proj(1,:))
+    MSE = [mean((proj(:,i)-test2_proj1).^2)
+        mean((proj(:,i)-test2_proj2).^2)
+        mean((proj(:,i)-test2_proj3).^2)];
+    [M,I] = min(MSE);
+    if (0<ind(i)) && (ind(i)<31)
+        class = 1;
+    elseif (30<ind(i)) && (ind(i)<61)
+        class = 2;
+    elseif (61<ind(i)) && (ind(i)<91)
+        class = 3;
+    end
+    
+    if I == 1
+        r = 1;
+    elseif I == 2
+        r = 2;
+    else
+        r = 3;
+    end
+    
+    if class == r
+        accurate = accurate + 1;
+    end
+end
+accuracy = sum(accurate)/10;
+A = ['Accuracy for test 2 is ', num2str(accuracy)];
+disp(A)
+
+%% Test 3
+% SVD
+test3_1 = test3(:,1:30);
+test3_2 = test3(:,31:60);
+test3_3 = test3(:,61:90);
+test3_ave1 = sum(test3_1,2)/30; % average music for each genere
+test3_ave2 = sum(test3_2,2)/30;
+test3_ave3 = sum(test3_3,2)/30;
+
+[U3,S3,V3] = svd(test3','econ');
+figure(3)
+plot(diag(S3)/sum(diag(S3)),'ro','LineWidth',[2])
+xlabel('Song clips')
+ylabel('Singular values')
+title('Singular value spectrum for Test 3')
+print(gcf,'-dpng','test3_singular_value_spectrum.png');
+% rank = 10
+test3_proj1 = V3'*test3_ave1; % how average music of genere 1 is projected
+% onto principle space
+test3_proj2 = V3'*test3_ave2;
+test3_proj3 = V3'*test3_ave3;
+
+% test
+ind = randi([1 90],1,10);
+test = test3(:,ind);
+proj = V3'*test;
+accurate = 0;
+for i = 1:length(proj(1,:))
+    MSE = [mean((proj(:,i)-test3_proj1).^2)
+        mean((proj(:,i)-test3_proj2).^2)
+        mean((proj(:,i)-test3_proj3).^2)];
+    [M,I] = min(MSE);
+    if (0<ind(i)) && (ind(i)<31)
+        class = 1;
+    elseif (30<ind(i)) && (ind(i)<61)
+        class = 2;
+    elseif (61<ind(i)) && (ind(i)<91)
+        class = 3;
+    end
+    
+    if I == 1
+        r = 1;
+    elseif I == 2
+        r = 2;
+    else
+        r = 3;
+    end
+    
+    if class == r
+        accurate = accurate + 1;
+    end
+end
+accuracy = sum(accurate)/10;
+A = ['Accuracy for test 3 is ', num2str(accuracy)];
+disp(A)
+
